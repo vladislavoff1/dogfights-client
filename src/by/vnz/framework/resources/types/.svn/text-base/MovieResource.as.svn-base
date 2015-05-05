@@ -1,0 +1,134 @@
+﻿package ru.delimiter.data.resources.types {
+	/**
+	 * @author ���� "DeliMIter" �������
+	 */
+
+	import flash.display.Loader;
+	import flash.display.LoaderInfo;
+	import flash.display.MovieClip;
+	import flash.events.Event;
+	import flash.events.IOErrorEvent;
+	import flash.net.URLLoader;
+	import flash.net.URLLoaderDataFormat;
+	import flash.utils.ByteArray;
+
+	import logging.debug;
+
+	import ru.delimiter.data.resources.EnhancedResource;
+	import ru.delimiter.data.resources.ResourceData;
+	import ru.delimiter.data.resources.ResourceManager;
+	import ru.delimiter.game.hexwarz.data.resources.IDMCResourceImportance;
+
+	public class MovieResource extends EnhancedResource {
+		private var resourceLoader : URLLoader;
+		private var movieLoader : Loader;
+
+		private var clipResource : ByteArray;
+		private var moviesList : Array;
+
+		public function MovieResource( source : ResourceData ) {
+			super( source );
+
+			moviesList = new Array();
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function loadResource() : void {
+			super.loadResource();
+
+			resourceLoader = new URLLoader();
+
+			resourceLoader.addEventListener( IOErrorEvent.IO_ERROR, onError, false, 0, true );
+			resourceLoader.addEventListener( Event.COMPLETE, onResource, false, 0, true );
+			resourceLoader.dataFormat = URLLoaderDataFormat.BINARY;
+			resourceLoader.load( createRequest());
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onError( event : IOErrorEvent ) : void {
+			resourceLoader.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			resourceLoader.removeEventListener( Event.COMPLETE, onResource );
+
+			super.onError( event );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onResource( event : Event ) : void {
+			ResourceManager.setNewBytesLoaded( resourceLoader.bytesLoaded, data.type );
+
+			resourceLoader.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			resourceLoader.removeEventListener( Event.COMPLETE, onResource );
+
+			clipResource = resourceLoader.data as ByteArray;
+			super.onResource( event );
+			resourceLoader = null;
+
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function normalSatisfy() : void {
+			var loader : Loader;
+
+			loader = new Loader();
+			loader.contentLoaderInfo.addEventListener( Event.COMPLETE, onMovie );
+			loader.loadBytes( clipResource );
+//			loader.addEventListener( Event.ENTER_FRAME, onMovie );
+
+			moviesList.push( loader.contentLoaderInfo );
+		}
+
+		/**
+		 * @param
+		 */
+		private function onMovie( event : Event ) : void {
+			var loader : LoaderInfo;
+			var framesTotal : int;
+			var loadedFrames : int;
+
+			loader = event.target as LoaderInfo;
+
+			if ( !( loader.content is MovieClip )) {
+				return;
+			}
+
+			loadedFrames = ( loader.content as MovieClip ).framesLoaded;
+			framesTotal = ( loader.content as MovieClip ).totalFrames;
+
+			//inf(framesTotal);
+
+			if ( loadedFrames < framesTotal ) {
+				return;
+			}
+
+//			aLoader.removeEventListener( Event.ENTER_FRAME, onMovie );
+//			aLoader.content.cacheAsBitmap = true;
+			finallySatisfy( loader.content );
+
+			var index : int;
+
+			index = moviesList.indexOf( loader );
+			moviesList.splice( index, 1 );
+//			 = null;
+
+			//for debug
+//			clearContent();
+
+		}
+
+		override protected function clearContent() : void {
+//			return;
+			if ( data.importance != IDMCResourceImportance.IMPORTANT ) {
+				super.clearContent();
+				clipResource = null;
+			}
+		}
+	}
+}

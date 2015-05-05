@@ -1,0 +1,67 @@
+﻿package ru.delimiter.data.resources.types
+{
+	/**
+	 * @author ���� "DeliMIter" �������
+	 */
+	import flash.events.Event;
+	import flash.events.IOErrorEvent;
+	import flash.media.Sound;
+
+	import ru.delimiter.data.resources.EnhancedResource;
+	import ru.delimiter.data.resources.ResourceData;
+	import ru.delimiter.data.resources.ResourceManager;
+
+	public class SoundResource extends EnhancedResource
+	{
+		private var resourceLoader : Sound;
+
+		public function SoundResource( source : ResourceData )
+		{
+			super( source );
+		}
+
+		override protected function loadResource() : void
+		{
+			super.loadResource();
+
+			resourceLoader = new Sound();
+
+			resourceLoader.addEventListener( IOErrorEvent.IO_ERROR, onError );
+			resourceLoader.addEventListener( Event.COMPLETE, onResource );
+			resourceLoader.load( createRequest());
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onError( event : IOErrorEvent ) : void
+		{
+			resourceLoader.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			resourceLoader.removeEventListener( Event.COMPLETE, onResource );
+
+			super.onError( event );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onResource( event : Event ) : void
+		{
+			ResourceManager.setNewBytesLoaded( resourceLoader.bytesLoaded, data.type );
+
+			resourceLoader.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			resourceLoader.removeEventListener( Event.COMPLETE, onResource );
+
+			super.onResource( event );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function normalSatisfy() : void
+		{
+			finallySatisfy( resourceLoader );
+		}
+
+	}
+}

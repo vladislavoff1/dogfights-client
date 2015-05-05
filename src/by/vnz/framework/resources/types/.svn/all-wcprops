@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/hexwarz-client/!svn/ver/29/trunk/classes/ru/delimiter/data/resources/types
+END
+SoundResource.as
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/hexwarz-client/!svn/ver/2/trunk/classes/ru/delimiter/data/resources/types/SoundResource.as
+END
+RawResource.as
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/hexwarz-client/!svn/ver/2/trunk/classes/ru/delimiter/data/resources/types/RawResource.as
+END
+BitmapResource.as
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/hexwarz-client/!svn/ver/29/trunk/classes/ru/delimiter/data/resources/types/BitmapResource.as
+END
+MovieResource.as
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/hexwarz-client/!svn/ver/29/trunk/classes/ru/delimiter/data/resources/types/MovieResource.as
+END
+TextResource.as
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/hexwarz-client/!svn/ver/2/trunk/classes/ru/delimiter/data/resources/types/TextResource.as
+END

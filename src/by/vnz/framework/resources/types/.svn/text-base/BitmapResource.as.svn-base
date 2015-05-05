@@ -1,0 +1,108 @@
+package ru.delimiter.data.resources.types {
+	import flash.display.Bitmap;
+	import flash.display.BitmapData;
+	import flash.display.Loader;
+	import flash.display.Sprite;
+	import flash.events.Event;
+	import flash.events.IOErrorEvent;
+	import flash.geom.Matrix;
+	import flash.geom.Point;
+	import flash.geom.Rectangle;
+
+	import logging.debug;
+
+	import ru.delimiter.data.resources.EnhancedResource;
+	import ru.delimiter.data.resources.ResourceData;
+	import ru.delimiter.data.resources.ResourceManager;
+	import ru.delimiter.game.hexwarz.data.resources.IDMCResourceImportance;
+
+	public class BitmapResource extends EnhancedResource {
+		private var _loader : Loader;
+
+		private var bitmapResource : BitmapData;
+		private var _originOffset : Point;
+
+		public function BitmapResource( source : ResourceData ) {
+			super( source );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function loadResource() : void {
+			super.loadResource();
+
+			_loader = new Loader();
+			_loader.contentLoaderInfo.addEventListener( Event.COMPLETE, onResource, false, 0, true );
+			_loader.contentLoaderInfo.addEventListener( IOErrorEvent.IO_ERROR, onError );
+			_loader.load( createRequest());
+//			_loader.contentLoaderInfo.addEventListener( SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler );
+//			_loader.contentLoaderInfo.addEventListener( ProgressEvent.PROGRESS, onProgress );			
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onError( event : IOErrorEvent ) : void {
+			_loader.contentLoaderInfo.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			_loader.contentLoaderInfo.removeEventListener( Event.COMPLETE, onResource );
+
+			super.onError( event );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function onResource( event : Event ) : void {
+			ResourceManager.setNewBytesLoaded( _loader.contentLoaderInfo.bytesLoaded, data.type );
+
+			_loader.contentLoaderInfo.removeEventListener( IOErrorEvent.IO_ERROR, onError );
+			_loader.removeEventListener( Event.COMPLETE, onResource );
+
+			var aBounds : Rectangle;
+			var aMatrix : Matrix;
+
+			aBounds = _loader.getBounds( _loader );
+
+			aMatrix = new Matrix();
+			aMatrix.translate( -aBounds.left, -aBounds.top );
+			bitmapResource = new BitmapData( aBounds.width, aBounds.height, true, 0x00000000 );
+
+			bitmapResource.draw( _loader, aMatrix );
+			_originOffset = aBounds.topLeft;
+
+			//inf(bitmapResource.width, bitmapResource.height);
+			_loader = null;
+
+			super.onResource( event );
+		}
+
+		/**
+		 * @param
+		 */
+		override protected function normalSatisfy() : void {
+			var bitmap : Bitmap = new Bitmap;
+			var box : Sprite = new Sprite();
+
+			box.addChild( bitmap );
+			bitmap.x = _originOffset.x;
+			bitmap.y = _originOffset.y;
+			bitmap.bitmapData = bitmapResource;
+
+			finallySatisfy( box );
+//			try {
+//			} catch ( er : Error ) {
+//				finallySatisfy( bitmap );
+//			}
+		}
+
+		override protected function clearContent() : void {
+			//			return;
+			if ( data.importance != IDMCResourceImportance.IMPORTANT ) {
+				super.clearContent();
+				bitmapResource = null;
+			}
+		}
+
+	}
+}

@@ -1,0 +1,49 @@
+10
+
+dir
+24
+https://svn.bitfold.net:8443/svn/hexwarz-client/trunk/classes/vnz
+https://svn.bitfold.net:8443/svn/hexwarz-client
+
+
+
+2009-11-27T16:58:39.739912Z
+18
+v.zhelezny
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6279fe72-77f0-9e4a-a684-175e065b218b
+
+utils
+dir
+
+controls
+dir
+
+events
+dir
+
+text
+dir
+
+debug
+dir
+
+core
+dir
+
+data
+dir
+

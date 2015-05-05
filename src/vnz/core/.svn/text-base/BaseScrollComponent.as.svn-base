@@ -1,0 +1,14 @@
+/**
+ * @author vnz
+ */
+
+package vnz.core {
+	import vnz.core.ZComponent;
+	
+	public class BaseScrollComponent extends ZComponent {
+
+		public function BaseScrollComponent() {
+			super();
+		}
+	}
+}

@@ -1,0 +1,13 @@
+<flex-config xmlns="http://www.adobe.com/2006/flex-config">
+  <target-player>9.0.124</target-player>
+  <compiler>
+    <debug>true</debug>
+    <source-path>
+      <path-element>src</path-element>
+    </source-path>
+  </compiler>
+  <file-specs>
+    <path-element>src/DogFights.as</path-element>
+  </file-specs>
+  <output>D:/projects/DogFights/debug/DogFights.swf</output>
+</flex-config>

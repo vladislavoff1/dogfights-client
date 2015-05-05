@@ -1,0 +1,456 @@
+/**
+ * @author vnz
+ */
+package vnz.controls
+{
+	import flash.display.DisplayObject;
+	import flash.display.InteractiveObject;
+	import flash.display.Sprite;
+	import flash.events.Event;
+	import flash.events.MouseEvent;
+	import flash.geom.Rectangle;
+
+	import logging.debug;
+	import logging.logger.Logger;
+
+	import vnz.core.ZComponent;
+	import vnz.core.ZShape;
+	import vnz.events.ZComponentEvent;
+	import vnz.events.ZControlsEvents;
+
+	public class ZScrollBar extends ZComponent
+	{
+		static private const DEFAULT_WIDTH : uint = 15;
+
+		protected var thumb : ZButton;
+		protected var btnUp : ZScrollButton;
+		protected var btnDown : ZScrollButton;
+		protected var track : Sprite;
+
+		private var _stepScroll : uint = 55; //in pixels
+		private var _target : InteractiveObject = null;
+		private var _targetScrollRect : Rectangle;
+		private var _targetSize : uint = 0;
+//		private var targetMask : Sprite; 
+		private var scrolling : Boolean;
+		private var _thumbMinVpos : Number;
+		private var _thumbMaxVpos : Number;
+//		private var thumbDragLength : Number;
+
+		private var _thumbMaxHeight : Number = 1000;
+		private var _thumbMinHeight : Number = 3;
+		private var _hasThumbFixedHeight : Boolean = true;
+		private var _autoHide : Boolean = false;
+
+		private var skinProps : Array = ["buttonUpBody", "buttonDownBody", "thumbBody", "trackBody"];
+
+		public function get autoHide() : Boolean
+		{
+			var result : Boolean = _autoHide;
+
+			return result;
+		}
+
+		public function set autoHide( value : Boolean ) : void
+		{
+			_autoHide = value;
+			invalidate();
+		}
+
+		public function get hasThumbFixedHeight() : Boolean
+		{
+			var result : Boolean = _hasThumbFixedHeight;
+			return result;
+		}
+
+		public function set hasThumbFixedHeight( value : Boolean ) : void
+		{
+			if ( value )
+			{
+				_thumbMaxHeight = thumb.height;
+				_thumbMinHeight = thumb.height;
+			} else
+			{
+				_thumbMaxHeight = track.height;
+				_thumbMinHeight = 3;
+			}
+			_hasThumbFixedHeight = value;
+			invalidate();
+		}
+
+		public function get hasTarget() : Boolean
+		{
+			var result : Boolean = ( _target != null );
+			return result;
+		}
+
+		private function get invisibleTargetSize() : uint
+		{
+			var result : uint = _targetSize - _targetScrollRect.height;
+			return result;
+		}
+
+		private function get thumbDragLength() : uint
+		{
+			var result : uint = Math.round( track.height - thumb.height );
+			return result;
+		}
+
+		public function get stepScroll() : uint
+		{
+			var result : uint = _stepScroll;
+
+			return result;
+		}
+
+		public function set stepScroll( value : uint ) : void
+		{
+			_stepScroll = value;
+		}
+
+		public function set trackBody( value : DisplayObject ) : void
+		{
+			if ( track.numChildren > 0 )
+			{
+				track.removeChildAt( 0 );
+			}
+			track.addChild( value );
+			invalidate();
+		}
+
+		public function set thumbBody( value : DisplayObject ) : void
+		{
+			thumb.bodyClip = value;
+			invalidate();
+		}
+
+		public function set buttonUpBody( value : DisplayObject ) : void
+		{
+			btnUp.bodyClip = value;
+			invalidate();
+		}
+
+		public function set buttonDownBody( value : DisplayObject ) : void
+		{
+			btnDown.bodyClip = value;
+			invalidate();
+		}
+
+		public function set skinObject( value : Object ) : void
+		{
+			if ( value )
+			{
+				for each ( var item : String in skinProps )
+				{
+					if ( value.hasOwnProperty( item ))
+					{
+						var skinItem : Object = value[item];
+						if ( skinItem )
+						{
+							this[item] = skinItem;
+						}
+					}
+				}
+			}
+		}
+
+		public function get allowScrolling() : Boolean
+		{
+			var result : Boolean = true;
+			if ( !_target || _targetSize == 0 || !_targetScrollRect || ( _targetSize <= _targetScrollRect.height ))
+			{
+				result = false;
+			}
+			return result;
+		}
+
+		public function ZScrollBar()
+		{
+		}
+
+		override protected function preinitUI() : void
+		{
+			super.preinitUI();
+
+			if ( !track )
+			{
+				track = new Sprite();
+				addChildAt( track, 0 );
+			}
+			if ( !btnUp )
+			{
+				btnUp = new ZScrollButton();
+				addChild( btnUp );
+				btnUp.width = DEFAULT_WIDTH;
+				btnUp.height = DEFAULT_WIDTH;
+			}
+			if ( !btnDown )
+			{
+				btnDown = new ZScrollButton();
+				addChild( btnDown );
+				btnDown.width = DEFAULT_WIDTH;
+				btnDown.height = DEFAULT_WIDTH;
+			}
+			if ( !thumb )
+			{
+				thumb = new ZButton( "", null, false );
+				addChild( thumb );
+				thumb.width = DEFAULT_WIDTH;
+				thumb.height = DEFAULT_WIDTH;
+			}
+			var trackBody : ZShape = new ZShape();
+//			var h : uint = this.height - btnDown.height - btnUp.height;
+			trackBody.graphicsDrawRect( DEFAULT_WIDTH, 100, 0xcccccc, 1 );
+			track.addChild( trackBody );
+
+			width = DEFAULT_WIDTH;
+		}
+
+		private function initUICompleted() : void
+		{
+			btnUp.addEventListener( ZControlsEvents.BUTTON_DOWN, pressButtonUp );
+			btnDown.addEventListener( ZControlsEvents.BUTTON_DOWN, pressButtonDown );
+
+			thumb.addEventListener( MouseEvent.MOUSE_DOWN, onPressThumb );
+		}
+
+		public function attachTo( target : InteractiveObject ) : void //, targetMask : Sprite = null 
+		{
+//			debug( "attachTo", this );
+			_target = target;
+			_target.addEventListener( MouseEvent.MOUSE_WHEEL, target_handlerMouseWheel );
+
+			_targetScrollRect = _target.scrollRect;
+
+			initUICompleted();
+
+			target.scrollRect = null;
+			invalidate();
+		}
+
+		private function target_sizeChanged( event : ZComponentEvent ) : void
+		{
+			changeTargetSize( _target.height );
+		}
+
+		override protected function draw() : void
+		{
+			if ( !_target || !_targetScrollRect )
+			{
+				return;
+			}
+			if ( this.height == 0 && _target && _targetScrollRect )
+			{
+				this.height = _targetScrollRect.height;
+			}
+
+			if ( _targetSize == 0 && _target )
+			{
+				_targetSize = _target.height;
+				_target.scrollRect = _targetScrollRect;
+			}
+			if ( this.height > 0 && track.height != ( this.height - btnUp.height - btnDown.height ))
+			{
+				track.height = this.height - btnUp.height - btnDown.height;
+			}
+			track.y = btnUp.y + btnUp.height;
+			btnDown.y = track.y + track.height;
+			_thumbMinVpos = track.y;
+
+			//set max and min thumb height
+			hasThumbFixedHeight = _hasThumbFixedHeight;
+			if ( _target )
+			{
+				if ( _autoHide )
+				{
+					debug( this, _targetSize, _targetScrollRect, Logger.DC_1 );
+				}
+				if ( _autoHide && !allowScrolling )
+				{
+					this.visible = false;
+				} else
+				{
+					this.visible = true;
+					updateThumb();
+					setTargetPos();
+				}
+			} else
+			{
+				thumb.y = _thumbMinVpos;
+			}
+		}
+
+		public function changeTargetSize( newSize : uint ) : void
+		{
+			_targetSize = newSize;
+			if ( !_targetScrollRect )
+			{
+				return;
+			}
+			invalidate();
+		}
+
+		private function updateThumb() : void
+		{
+			var newThumbHeight : uint = 0;
+			if ( !allowScrolling )
+			{
+				newThumbHeight = _thumbMaxHeight;
+			} else
+			{
+				var pO : Number = 100 * _targetScrollRect.height / _targetSize;
+				newThumbHeight = Math.round( track.height * pO / 100 );
+			}
+//			debug( "updateThumb", thumb.height, _thumbMaxHeight );
+			//check max and min thumb size
+			if ( newThumbHeight > _thumbMaxHeight )
+			{
+				newThumbHeight = _thumbMaxHeight;
+			}
+			if ( newThumbHeight < _thumbMinHeight )
+			{
+				newThumbHeight = _thumbMinHeight;
+			}
+			thumb.height = newThumbHeight;
+
+			thumb.y = Math.round( thumb.y * 10 ) / 10;
+			if ( thumb.y < _thumbMinVpos )
+			{
+				thumb.y = _thumbMinVpos;
+			}
+			_thumbMaxVpos = track.y + Math.round( track.height - thumb.height );
+			if ( thumb.y > _thumbMaxVpos )
+			{
+				thumb.y = _thumbMaxVpos;
+			}
+		}
+
+		/**
+		 *onPress for track
+		 */
+		private function onPressThumb( event : MouseEvent ) : void
+		{
+			if ( !allowScrolling )
+			{
+				return;
+			}
+			thumb.startDrag( false, new Rectangle( thumb.x, track.y, 0, thumbDragLength ));
+			stage.addEventListener( MouseEvent.MOUSE_UP, stopScrollWithThumb );
+			stage.addEventListener( Event.MOUSE_LEAVE, stopScrollWithThumb );
+			stage.addEventListener( MouseEvent.MOUSE_MOVE, mouseMoveHandler );
+			scrolling = true;
+		}
+
+		private function stopScrollWithThumb( event : Event = null ) : void
+		{
+			thumb.stopDrag();
+			stage.removeEventListener( MouseEvent.MOUSE_UP, stopScrollWithThumb );
+			stage.removeEventListener( Event.MOUSE_LEAVE, stopScrollWithThumb );
+			stage.removeEventListener( MouseEvent.MOUSE_MOVE, mouseMoveHandler );
+			setTargetPos();
+			scrolling = false;
+		}
+
+		private function mouseMoveHandler( event : MouseEvent ) : void
+		{
+			setTargetPos();
+		}
+
+		private function setTargetPos() : void
+		{
+			if ( _targetSize <= _targetScrollRect.height )
+			{
+				_targetScrollRect.y = 0;
+				return;
+			}
+			var pT : Number = Math.round(( 100 * ( thumb.y - _thumbMinVpos )) / thumbDragLength ); // * 10 ) / 10;
+
+			if ( pT == 0 )
+			{
+				_targetScrollRect.y = 0;
+			} else if ( pT == 100 )
+			{
+				_targetScrollRect.y = invisibleTargetSize + 1;
+			} else
+			{
+				_targetScrollRect.y = Math.ceil( pT * invisibleTargetSize / 100 );
+			}
+			updateTargetScrollRect();
+		}
+
+		private function setThumbPos() : void
+		{
+			var pO : Number = 100 * Math.abs( _target.y - _targetScrollRect.y ) / invisibleTargetSize;
+			thumb.y = pO * thumbDragLength / 100;
+			thumb.y += _thumbMinVpos;
+
+			updateThumb();
+		}
+
+		private function pressButtonUp( event : ZControlsEvents ) : void
+		{
+			scrollOnButton( -1 );
+		}
+
+		private function pressButtonDown( event : ZControlsEvents ) : void
+		{
+			scrollOnButton( 1 );
+		}
+
+		/*
+		 * direction: -1 - up, 1 - down
+		 */
+		private function scrollOnButton( direction : int ) : void
+		{
+			if ( !allowScrolling )
+			{
+				return;
+			}
+			var newPos : Number = _targetScrollRect.y + ( _stepScroll * direction );
+			if (( Math.abs( _targetScrollRect.y ) < invisibleTargetSize ) && ( Math.abs( newPos ) > invisibleTargetSize ))
+			{
+				newPos = invisibleTargetSize;
+			}
+			if ( newPos < 0 )
+			{
+				newPos = 0;
+			}
+			if (( Math.abs( newPos ) <= invisibleTargetSize ) && ( newPos >= 0 ))
+			{
+				_targetScrollRect.y = newPos;
+				_target.scrollRect = _targetScrollRect;
+				setThumbPos();
+
+			}
+		}
+
+		private function updateTargetScrollRect() : void
+		{
+			_target.scrollRect = _targetScrollRect;
+		}
+
+//		private function target_handlerRollOver(event : MouseEvent) : void {
+//			stage.stageFocusRect = false;
+//			stage.focus = this.target;
+//			inf("target_handlerRollOver: " + stage.focus);
+//		}
+
+		private function target_handlerMouseWheel( event : MouseEvent ) : void
+		{
+//			inf( "target_handlerMouseWheel" + stage.focus );
+//			var direction : int = event.delta > 0 ? -1 : 1;
+//			scrollOnButton(direction);
+			scrollOnButton( -1 * event.delta );
+//			for (var i : int = 0; i < Math.abs(event.delta); i++) {
+//				scrollOnButton(direction);
+//			} 
+		}
+
+		public function resetToZeroPos() : void
+		{
+			thumb.y = _thumbMinVpos;
+			invalidate();
+		}
+
+	}
+}
